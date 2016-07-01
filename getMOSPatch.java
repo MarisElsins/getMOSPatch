@@ -21,7 +21,7 @@ License:            1) You may use this script for your (or your businesses) pur
                        author, copyright and license sections as the first thing in the beginning of this file
                     3) You may NOT publish or distribute this script, java classes compiled from it, or packaged jar files,
                        or any other variation of it PUBLICLY (including, but not limited to uploading it to your public website or ftp server),
-                       instead just link to its location in blog.tanelpoder.com
+                       instead just link to its location in https://github.com/MarisElsins/getMOSPatch
                     4) You may distribute this script INTERNALLY in your company, for internal use only,
                        for example when building a standard DBA toolset to be deployed to all
                        servers or DBA workstations
