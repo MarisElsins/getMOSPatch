@@ -1,5 +1,5 @@
 File name:          getMOSPatch.java
-Version:            2.0
+Version:            2.0 
 Purpose:            An easier way to download patches from My Oracle Support (MOS) https://support.oracle.com
                     All you need is:
                         - Valid MOS credentials
