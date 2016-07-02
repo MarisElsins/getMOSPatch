@@ -145,7 +145,6 @@ public class getMOSPatch {
             }
             iStream = (InputStream) conn.getInputStream();
         } catch (Exception e) {
-            e.printStackTrace();
             throw e;
         }
         return iStream;
@@ -201,7 +200,6 @@ public class getMOSPatch {
             content.close();
             outputStream.close();
         } catch (Exception e) {
-            e.printStackTrace();
             throw e;
         }
     }
@@ -226,7 +224,6 @@ public class getMOSPatch {
                 br.close();
                 //Pass the exception up for processing. We want to terminate if it breaks here.
             } catch (IOException e) {
-                e.printStackTrace();
                 throw e;
             }
         }
@@ -242,7 +239,6 @@ public class getMOSPatch {
             outputstring = new ReadFile(".getMOSPatch.tmp").getContent();
             new File(".getMOSPatch.tmp").delete();
         } catch (Exception e) {
-            e.printStackTrace();
             throw e;
         }
         return outputstring;
@@ -347,7 +343,6 @@ public class getMOSPatch {
                 }
                 writer.close();
             } catch (Exception e) {
-                e.printStackTrace();
                 throw e;
             }
             // if the config file existed, simply read the inputs from it.
@@ -470,7 +465,6 @@ public class getMOSPatch {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
             throw e;
         }
     }
@@ -490,7 +484,6 @@ public class getMOSPatch {
                 System.out.println("There's Nothing to download!");
             }
         } catch (Exception e) {
-            e.printStackTrace();
             throw e;
         }
     }
