@@ -21,9 +21,9 @@ getMOSPatch V2 - Tool to that helps downloading patches from My Oracle Support d
 <pre style="white-space:pre-wrap;">
 java -jar getMOSPatch.jar patch=< patch_number_1>[,< patch_number_n>]* [reset=yes] [platform=< plcode_1>[,< plcode_n>]*] [regexp=< regular_expression>] [download=all] [MOSUser=< username>] [MOSPass=< password>]</pre>
 
-Note 1: for JRE 1.6: use *java -Dhttps.protocols=TLSv1 -jar getMOSPatch.jar ...*
-Note 2: Usage notes are provided for a packaged jre
-Note 3: Order of parameters is irrelevant
+   * Note 1: for JRE 1.6: use *java -Dhttps.protocols=TLSv1 -jar getMOSPatch.jar ...*
+   * Note 2: Usage notes are provided for a packaged jre
+   * Note 3: Order of parameters is irrelevant
 
 Explanation of parameters:
 
