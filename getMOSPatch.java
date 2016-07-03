@@ -27,10 +27,11 @@ License:            1) You may use this script for your (or your businesses) pur
                        servers or DBA workstations
 
 Usage:
-        java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]*  [reset=yes] [platform=<plcode_1>[,<plcode_n>]*] [regexp=<regular_expression>] [download=all] [MOSUser=<username>] [MOSPass=<password>]
+        java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* [reset=yes] [platform=<plcode_1>[,<plcode_n>]*] [regexp=<regular_expression>] [download=all] [MOSUser=<username>] [MOSPass=<password>]
 
         Note 1: for JRE 1.6: use java -Dhttps.protocols=TLSv1 -jar getMOSPatch.jar ...
         Note 2: Usage notes are provided for a packaged jre
+        Note 3: Order of parameters is irrelevant
 
                     patch -         list of patches to download, i.e. 6880880,16867777,12978712
                     reset=yes -     This will initiate the resetting of the chosen Platforms/Languages, otherwise the list previous time used is retrieved from .getMOSPatch.cfg
@@ -53,7 +54,7 @@ Example:            To download OPatch for 11gR2 database on Linux x86-64:
         Processing patch 6880880 for Linux x86-64 and applying regexp .*1120.* to the filenames:
          1 - p6880880_112000_Linux-x86-64.zip
          Enter Comma separated files to download: all
-         All files will be downloadad becuase download=all was specified.
+         All files will be downloadad because download=all was specified.
 
         Downloading all selected files
          Downloading p6880880_112000_Linux-x86-64.zip: 50MB at average speed of 3116KB/s - DONE!
@@ -436,7 +437,7 @@ public class getMOSPatch {
                 if (parameters.containsKey("download") && parameters.get("download").equals("all") && !PatchFileList.isEmpty()) {
                     // downlaod all files here
                     System.out.println(" Enter Comma separated files to download: all");
-                    System.out.println(" All files will be downloadad becuase download=all was specified.");
+                    System.out.println(" All files will be downloadad because download=all was specified.");
                     PatchSelector = "all";
                 } else if (PatchFileList.isEmpty()) {
                     // Nothing needs to be done
@@ -494,35 +495,40 @@ public class getMOSPatch {
             //Populate the parameters map
             parameters = new HashMap < String, String > ();
             parameters.put("regexp", ".*");
+            if (args.length > 0) {
             //will only consider parameters that contain "=", the rest is ignored
-            for (String s: args) {
-                if (s.contains("=")) {
-                    parameters.put(s.split("=")[0], s.split("=")[1]);
+                for (String s: args) {
+                    if (s.contains("=")) {
+                        parameters.put(s.split("=")[0], s.split("=")[1]);
+                    }
                 }
-            }
 
-            // Setting the Cookie handling and the Authenticator
-            CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
-            Authenticator.setDefault(new CustomAuthenticator());
+                // Setting the Cookie handling and the Authenticator
+                CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
+                Authenticator.setDefault(new CustomAuthenticator());
 
-            //Logs on to MOS, and initiates the Authenticator and the SSL session
-            String waste = DownloadString("https://updates.oracle.com/Orion/SimpleSearch/switch_to_saved_searches");
+                //Logs on to MOS, and initiates the Authenticator and the SSL session
+                String waste = DownloadString("https://updates.oracle.com/Orion/SimpleSearch/switch_to_saved_searches");
 
-            // Initiate platforms list to download the patches for
-            if (parameters.containsKey("patch") || (parameters.containsKey("reset") && parameters.get("reset").equals("yes"))) {
-                Platforms();
-            }
-
-            // Iterate through the requested patches and download them one by one
-            if (parameters.containsKey("patch")) {
-                for (String p: parameters.get("patch").split(",")) {
-                    BuildDLFileList(p, parameters.get("regexp"));
+                // Initiate platforms list to download the patches for
+                if (parameters.containsKey("patch") || (parameters.containsKey("reset") && parameters.get("reset").equals("yes"))) {
+                    Platforms();
                 }
-                //Download all files
-                DownloadAllFIles();
-                // Output if no patches were chosen
+
+                // Iterate through the requested patches and download them one by one
+                if (parameters.containsKey("patch")) {
+                    for (String p: parameters.get("patch").split(",")) {
+                        BuildDLFileList(p, parameters.get("regexp"));
+                    }
+                    //Download all files
+                    DownloadAllFIles();
+                    // Output if no patches were chosen
+                } else {
+                    System.out.println("\nNo patch numbers are specified.");
+                }
             } else {
-                System.out.println("\nNo patch numbers are specified.");
+                System.out.println("\nERROR: At least one parameter needs to be specified!");
+                System.out.println("USAGE: java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* [platform=<plcode_1>[,<plcode_n>]*] [reset=yes] [regexp=<regular_expression>] [download=all] [MOSUser=<username>] [MOSPass=<password>]");
             }
             // Just a generic exception display
             // This is not very sophisticated, but should be good enough
