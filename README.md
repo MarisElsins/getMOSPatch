@@ -1,5 +1,5 @@
 # getMOSPatch
-getMOSPatch V2 - Tool to that helps downloading patches from My Oracle Support directly to the server! This version is completely rewritten in java and it should run on most platforms using JRE 1.6 or later.
+getMOSPatch V2 - A Tool that helps downloading patches from My Oracle Support directly to the server! This version is completely rewritten in java and it should run on most platforms using JRE 1.6 or later.
 
 
    * File name: getMOSPatch.java
