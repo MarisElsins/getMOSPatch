@@ -489,8 +489,24 @@ public class getMOSPatch {
         }
     }
 
+    public static void setProxyEnvironment() throws URISyntaxException {
+        String http_proxy = System.getenv("http_proxy");
+        if (http_proxy.length() > 0) {
+            URI http_proxy_url = new URI(http_proxy);
+            System.setProperty("http.proxyHost", http_proxy_url.getHost());
+            System.setProperty("http.proxyPort", String.valueOf(http_proxy_url.getPort()));
+        }
+        String https_proxy = System.getenv("https_proxy");
+        if (https_proxy.length() > 0) {
+            URI https_proxy_url = new URI(https_proxy);
+            System.setProperty("https.proxyHost", https_proxy_url.getHost());
+            System.setProperty("https.proxyPort", String.valueOf(https_proxy_url.getPort()));
+        }
+    }
+
     public static void main(String[] args) {
         try {
+            setProxyEnvironment();
 
             //Populate the parameters map
             parameters = new HashMap < String, String > ();
