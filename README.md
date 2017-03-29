@@ -63,17 +63,16 @@ Downloading all selected files
 ```
 
 ### Build instructions (by example):
-This jar is built on Linux x86-64:
+This jar is built on OS X 10.12.3. 
+The rt.jar used for "-bootclasspath" was obtained from the Linux x64 version of jre 6u45 available [here](http://www.oracle.com/technetwork/java/javase/downloads/java-archive-downloads-javase6-419409.html#jre-6u45-oth-JPR) :
 ```
-$ java -version
-java version "1.6.0_75"
-Java(TM) SE Runtime Environment (build 1.6.0_75-b13)
-Java HotSpot(TM) 64-Bit Server VM (build 20.75-b01, mixed mode)
+$ javac -version
+javac 1.8.0_66
 
-$ rm getMOSPatch.jar; javac getMOSPatch.java && jar cvmf META-INF/MANIFEST.MF getMOSPatch.jar getMOSPatch*.class; rm *.class
+$ rm getMOSPatch.jar; javac -bootclasspath ~/99_TMP/jre1.6.0.45_rt/rt.jar -source 1.6 -target 1.6 getMOSPatch.java && jar cvmf META-INF/MANIFEST.MF getMOSPatch.jar getMOSPatch*.class; rm *.class
 added manifest
-adding: getMOSPatch$1.class(in = 184) (out= 149)(deflated 19%)
-adding: getMOSPatch.class(in = 11903) (out= 6194)(deflated 47%)
-adding: getMOSPatch$CustomAuthenticator.class(in = 1347) (out= 724)(deflated 46%)
-adding: getMOSPatch$ReadFile.class(in = 1022) (out= 665)(deflated 34%)
+adding: getMOSPatch$1.class(in = 181) (out= 148)(deflated 18%)
+adding: getMOSPatch$CustomAuthenticator.class(in = 1344) (out= 723)(deflated 46%)
+adding: getMOSPatch$ReadFile.class(in = 986) (out= 641)(deflated 34%)
+adding: getMOSPatch.class(in = 12290) (out= 6396)(deflated 47%)
 ```
