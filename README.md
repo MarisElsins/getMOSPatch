@@ -1,7 +1,6 @@
 # getMOSPatch
 getMOSPatch V2 - A Tool that helps downloading patches from My Oracle Support directly to the server! This version is completely rewritten in java and it should run on most platforms using JRE 1.6 or later.
 
-
    * File name: getMOSPatch.java
    * Version: 2.0 
    * Purpose: An easier way to download patches from My Oracle Support (MOS) https://support.oracle.com. All you need is: Valid MOS credentials, the patch number(s), list of target platform/languages that the patch is required for, internet connectivity and JRE 1.6 or higher
@@ -21,7 +20,14 @@ getMOSPatch V2 - A Tool that helps downloading patches from My Oracle Support di
 Before you start, download https://github.com/MarisElsins/getMOSPatch/raw/master/getMOSPatch.jar and then execute it like this:
 
 <pre style="white-space:pre-wrap;">
-java -jar getMOSPatch.jar patch=< patch_number_1>[,< patch_number_n>]* [reset=yes] [platform=< plcode_1>[,< plcode_n>]*] [regexp=< regular_expression>] [download=all] [MOSUser=< username>] [MOSPass=< password>]</pre>
+java -jar getMOSPatch.jar patch=< patch_number_1>[,< patch_number_n>]*
+                          [reset=yes] 
+                          [platform=< plcode_1>[,< plcode_n>]*] 
+                          [regexp=< regular_expression>] 
+                          [download=all] 
+                          [stagedir=< target directory path>]
+                          [MOSUser=< username>] 
+                          [MOSPass=< password>]</pre>
 
    * Note 1: for JRE 1.6: use *java -Dhttps.protocols=TLSv1 -jar getMOSPatch.jar ...*
    * Note 2: Usage notes are provided for a packaged jre
@@ -34,6 +40,7 @@ Explanation of parameters:
    * platform - List of comma separated platform language codes The code list is presented the first time you execute the script. I.e. "226P,3L" for Linux x86-64 and Canadian French (FRC)
    * regexp - regular expression to filter the filenames. Typically this can be used if the same patch is available for multiple releases of software and you know which one you need. I.e. .*121.* would be useful for Oracle Database 12c (R1)
    * download=yes - specify to download all found files without need to specify inputs. Very useful when "regexp" parameter is used
+   * stagedir - Optionally specify the target directory path for the downloaded patches.
    * MOSUser - Optionally specify the MOS username, if not provided, it will be prompted.
    * MOSPass - Optionally specify the MOS pasword, if not provided, it will be prompted.
 

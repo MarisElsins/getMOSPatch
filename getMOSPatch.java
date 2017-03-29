@@ -27,7 +27,14 @@ License:            1) You may use this script for your (or your businesses) pur
                        servers or DBA workstations
 
 Usage:
-        java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* [reset=yes] [platform=<plcode_1>[,<plcode_n>]*] [regexp=<regular_expression>] [download=all] [MOSUser=<username>] [MOSPass=<password>]
+        java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* \
+                                  [reset=yes] \
+                                  [platform=<plcode_1>[,<plcode_n>]*] \
+                                  [regexp=<regular_expression>] \
+                                  [download=all] \
+                                  [stagedir=<directory path>] \
+                                  [MOSUser=<username>] \
+                                  [MOSPass=<password>]
 
         Note 1: for JRE 1.6: use java -Dhttps.protocols=TLSv1 -jar getMOSPatch.jar ...
         Note 2: Usage notes are provided for a packaged jre
@@ -40,6 +47,7 @@ Usage:
                     regexp -        regular expression to filter the filenames. Typically this can be used if the same patch is available for multiple releases of software and you know which one you need.
                                     i.e. .*121.* would be useful for Oracle Database 12c (R1)
                     download=yes -  specify to download all found files without need to specify inputs. Very useful when "regexp" parameter is used
+                    stagedir -      Optionally specify the staging directory. The current directory is the default.
                     MOSUser -       Optionally specify the MOS username, if not provided, it will be prompted.
                     MOSPass -       Optionally specify the MOS pasword, if not provided, it will be prompted.
 
@@ -472,14 +480,18 @@ public class getMOSPatch {
 
     // Method to download all files from URLs in DownloadFiles Map
     private static void DownloadAllFIles() throws Exception {
+        String targetdir = "";
         try {
+	    if (parameters.containsKey("stagedir")) {
+                targetdir =  parameters.get("stagedir") + File.separator;
+            }
             System.out.println();
             if (!PatchFileList.isEmpty()) {
                 System.out.println("Downloading all selected files:");
                 //iterate through the URLs in the TreeMap
                 for (Map.Entry < Integer, String > d: DownloadFiles.entrySet()) {
                     System.out.print(" ");
-                    DownloadFile(d.getValue(), d.getValue().split("process_form/")[1].split(".zip")[0] + ".zip");
+                    DownloadFile(d.getValue(), targetdir + d.getValue().split("process_form/")[1].split(".zip")[0] + ".zip");
                 }
             } else {
                 System.out.println("There's Nothing to download!");
