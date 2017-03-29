@@ -30,8 +30,9 @@ java -jar getMOSPatch.jar patch=< patch_number_1>[,< patch_number_n>]* \
                           [MOSPass=< password>]</pre>
 
    * Note 1: for JRE 1.6: use *java -Dhttps.protocols=TLSv1 -jar getMOSPatch.jar ...*
-   * Note 2: Usage notes are provided for a packaged jre
-   * Note 3: Order of parameters is irrelevant
+   * Note 2: If you're behind a proxy, use the appropriate java flags -DsocksProxyHost=... and -DsocksProxyPort=... (for socks proxy) or -Dhttps.proxyHost=... and -Dhttps.proxyPort=... (For HTTPS proxy), for example ```java -DsocksProxyHost=host_proxy -DsocksProxyPort=8888 -jar getMOSPatch.jar patch=6880880```
+   * Note 3: Usage notes are provided for a packaged jre
+   * Note 4: Order of parameters is irrelevant
 
 Explanation of parameters:
 
