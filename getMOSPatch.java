@@ -34,7 +34,8 @@ Usage:
                                   [download=all] \
                                   [stagedir=<directory path>] \
                                   [MOSUser=<username>] \
-                                  [MOSPass=<password>]
+                                  [MOSPass=<password>] \
+                                  [silent=yes]
 
         Note 1: for JRE 1.6: use java -Dhttps.protocols=TLSv1 -jar getMOSPatch.jar ...
         Note 2: Usage notes are provided for a packaged jre
@@ -50,6 +51,7 @@ Usage:
                     stagedir -      Optionally specify the staging directory. The current directory is the default.
                     MOSUser -       Optionally specify the MOS username, if not provided, it will be prompted.
                     MOSPass -       Optionally specify the MOS pasword, if not provided, it will be prompted.
+                    silent=yes -    The dynamic progress indicator is not displayed.
 
 Example:            To download OPatch for 11gR2 database on Linux x86-64:
 
@@ -184,15 +186,15 @@ public class getMOSPatch {
                 // I've seen this stuff sometimes not working on windows.
                 if (!filename.equals(".getMOSPatch.tmp")) {
                     filesize = filesize + bytesRead;
-                    if (printsize + PROGRESS_INTERVAL < filesize) {
+                    if ((printsize + PROGRESS_INTERVAL < filesize) && (!parameters.containsKey("silent") || !parameters.get("silent").equals("yes"))) {
                         time_ms2 = System.currentTimeMillis();
                         System.out.print(String.format("%" + progrdata.length() + "s", "").replace(" ", "\b"));
                         progrdata = pchar[(iterator++ % 4)] + " " + filesize / 1024 / 1024 + "MB at average speed of " + filesize / (time_ms2 - time_ms1) + "KB/s        ";
                         System.out.print(progrdata);
                         printsize = printsize + PROGRESS_INTERVAL;
                     }
-                    // If downloading a webpage, just show a rotating char as a sign that something's ongoing.
-                } else {
+                    // If downloading a webpage, just show a rotating char as a sign that something's ongoing, unless silent=yes
+                } else if (!parameters.containsKey("silent") || !parameters.get("silent").equals("yes")) {
                     System.out.print(String.format("%" + progrdata.length() + "s", "").replace(" ", "\b") + pchar[(iterator++ % 4)]);
                 }
             }
@@ -376,12 +378,13 @@ public class getMOSPatch {
             Matcher regexMatcher2;
 
             // Temporary variables are reset
-            PatchFileList.clear();
             int PatchFileListCounter = 0;
             // Iterate through the list of platforms and languages
             for (Map.Entry < String, String > platform: ConfiguredPlatforms.entrySet()) {
                 // keeps the password protection status
                 pprotected = false;
+                PatchFileList.clear();
+                PatchFileListCounter = 0;
                 System.out.println();
                 System.out.println("Processing patch " + patch + " for " + platform.getValue() + " and applying regexp " + regx + " to the filenames:");
 
@@ -546,6 +549,7 @@ public class getMOSPatch {
             // This is not very sophisticated, but should be good enough
         } catch (Exception e) {
             e.printStackTrace();
+            System.exit(2);
         }
     }
 }

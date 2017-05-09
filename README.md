@@ -27,7 +27,8 @@ java -jar getMOSPatch.jar patch=< patch_number_1>[,< patch_number_n>]* \
                           [download=all] \
                           [stagedir=< target directory path>] \
                           [MOSUser=< username>] \
-                          [MOSPass=< password>]</pre>
+                          [MOSPass=< password>] \
+                          [silent=yes]</pre>
 
    * Note 1: for JRE 1.6: use *java -Dhttps.protocols=TLSv1 -jar getMOSPatch.jar ...*
    * Note 2: If you're behind a proxy, use the appropriate java flags -DsocksProxyHost=... and -DsocksProxyPort=... (for socks proxy) or -Dhttps.proxyHost=... and -Dhttps.proxyPort=... (For HTTPS proxy), for example ```java -DsocksProxyHost=host_proxy -DsocksProxyPort=8888 -jar getMOSPatch.jar patch=6880880```
@@ -44,6 +45,7 @@ Explanation of parameters:
    * stagedir - Optionally specify the target directory path for the downloaded patches.
    * MOSUser - Optionally specify the MOS username, if not provided, it will be prompted.
    * MOSPass - Optionally specify the MOS pasword, if not provided, it will be prompted.
+   * silent=yes - The dynamic progress indicator is not displayed.
 
 ### Example:  To download OPatch for 11gR2 database on Linux x86-64:
 ```
