@@ -489,7 +489,7 @@ public class getMOSPatch {
                 targetdir =  parameters.get("stagedir") + File.separator;
             }
             System.out.println();
-            if (!PatchFileList.isEmpty()) {
+            if (!DownloadFiles.isEmpty()) {
                 System.out.println("Downloading all selected files:");
                 //iterate through the URLs in the TreeMap
                 for (Map.Entry < Integer, String > d: DownloadFiles.entrySet()) {
