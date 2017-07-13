@@ -202,6 +202,7 @@ public class getMOSPatch {
             System.out.print(String.format("%" + progrdata.length() + "s", "").replace(' ', '\b'));
             if (!filename.equals(".getMOSPatch.tmp")) {
                 time_ms2 = System.currentTimeMillis();
+                if (time_ms2 == time_ms1) {time_ms2=time_ms2+1;}
                 progrdata = filesize / 1024 / 1024 + "MB at average speed of " + filesize / (time_ms2 - time_ms1) + "KB/s - DONE!";
                 System.out.println(progrdata);
             } else {
