@@ -41,7 +41,7 @@ Explanation of parameters:
    * reset=yes - This will initiate the resetting of the chosen Platforms/Languages, otherwise the list previous time used is retrieved from .getMOSPatch.cfg
    * platform - List of comma separated platform language codes The code list is presented the first time you execute the script. I.e. "226P,3L" for Linux x86-64 and Canadian French (FRC)
    * regexp - regular expression to filter the filenames. Typically this can be used if the same patch is available for multiple releases of software and you know which one you need. I.e. .*121.* would be useful for Oracle Database 12c (R1)
-   * download=yes - specify to download all found files without need to specify inputs. Very useful when "regexp" parameter is used
+   * download=all - specify to download all found files without need to specify inputs. Very useful when "regexp" parameter is used
    * stagedir - Optionally specify the target directory path for the downloaded patches.
    * MOSUser - Optionally specify the MOS username, if not provided, it will be prompted.
    * MOSPass - Optionally specify the MOS pasword, if not provided, it will be prompted.
