@@ -165,7 +165,8 @@ public class getMOSPatch {
     //
     private static void DownloadFile(String url, String filename) throws Exception {
         try {
-            int filesize = 0, printsize = 0;
+            long filesize = 0;
+            int printsize = 0;
             long time_ms1, time_ms2;
             String progrdata = " ";
             InputStream content = (InputStream) getHttpInputStream(url);
