@@ -1,6 +1,6 @@
 /*
 File name:          getMOSPatch.java
-Version:            2.0 
+Version:            2.1 
 Purpose:            An easier way to download patches from My Oracle Support (MOS) https://support.oracle.com
                     All you need is:
                         - Valid MOS credentials
@@ -25,6 +25,10 @@ License:            1) You may use this script for your (or your businesses) pur
                     4) You may distribute this script INTERNALLY in your company, for internal use only,
                        for example when building a standard DBA toolset to be deployed to all
                        servers or DBA workstations
+
+Changes:
+        2.0: Maris - Complete rewrite to Java
+        2.1: Maris - Adjustments to the new user authentication process Oracle implemented (13-May-2020)
 
 Usage:
         java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* \
@@ -128,7 +132,7 @@ public class getMOSPatch {
     }
 
     // Prepares the inputstream for HTTP downloads (webpages and files too)
-    // "Heavily inspired" from Nathan Reynolds' post post: http://stackoverflow.com/revisions/26046079/2
+    // "Heavily inspired" from Nathan Reynolds' post: http://stackoverflow.com/revisions/26046079/2
     private static InputStream getHttpInputStream(String url) throws Exception {
         try {
             URL resourceUrl, base, next;
@@ -169,8 +173,8 @@ public class getMOSPatch {
             int printsize = 0;
             long time_ms1, time_ms2;
             String progrdata = " ";
-            InputStream content = (InputStream) getHttpInputStream(url);
-            BufferedReader in = new BufferedReader(new InputStreamReader(content));
+            URL real_url = new URL(url);
+            BufferedInputStream in = new BufferedInputStream(real_url.openStream());
             FileOutputStream outputStream = new FileOutputStream(filename);
 
             int bytesRead = -1, iterator = 0;
@@ -181,7 +185,7 @@ public class getMOSPatch {
             }
             // The download is happening here. I've pimped it with some progress display (except when downloading a webpage)
             time_ms1 = System.currentTimeMillis();
-            while ((bytesRead = content.read(buffer)) != -1) {
+            while ((bytesRead = in.read(buffer, 0, BUFFER_SIZE)) != -1) {
                 outputStream.write(buffer, 0, bytesRead);
                 // Show extended download progress only if downloading a real file
                 // I've seen this stuff sometimes not working on windows.
@@ -210,7 +214,7 @@ public class getMOSPatch {
                 System.out.print("\b");
             }
             // close the sreams
-            content.close();
+            in.close();
             outputStream.close();
         } catch (Exception e) {
             throw e;
@@ -525,7 +529,7 @@ public class getMOSPatch {
                 Authenticator.setDefault(new CustomAuthenticator());
 
                 //Logs on to MOS, and initiates the Authenticator and the SSL session
-                String waste = DownloadString("https://updates.oracle.com/Orion/SimpleSearch/switch_to_saved_searches");
+                String waste = DownloadString("https://updates.oracle.com/Orion/Services/download");
 
                 // Initiate platforms list to download the patches for
                 if (parameters.containsKey("patch") || (parameters.containsKey("reset") && parameters.get("reset").equals("yes"))) {
