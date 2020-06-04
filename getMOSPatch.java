@@ -29,6 +29,7 @@ License:            1) You may use this script for your (or your businesses) pur
 Changes:
         2.0: Maris - Complete rewrite to Java
         2.1: Maris - Adjustments to the new user authentication process Oracle implemented (13-May-2020)
+        2.2: Maris - the platforms list won't be downloaded anymore when the "platform" parameter is specified; Cleanup of the code
 
 Usage:
         java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* \
@@ -91,7 +92,6 @@ public class getMOSPatch {
 
     // some variables, that will be used for returning from classes.
     private static String outputstring;
-    private static InputStream iStream;
 
     // I'll store the passed parameters in this Map
     private static Map < String, String > parameters;
@@ -129,40 +129,6 @@ public class getMOSPatch {
             }
             return new PasswordAuthentication(username, password);
         }
-    }
-
-    // Prepares the inputstream for HTTP downloads (webpages and files too)
-    // "Heavily inspired" from Nathan Reynolds' post: http://stackoverflow.com/revisions/26046079/2
-    private static InputStream getHttpInputStream(String url) throws Exception {
-        try {
-            URL resourceUrl, base, next;
-            HttpURLConnection conn;
-            String location;
-            location = url;
-
-            while (true) {
-                resourceUrl = new URL(url);
-                conn = (HttpURLConnection)(new URL(location).openConnection());
-                conn.setConnectTimeout(30000);
-                conn.setReadTimeout(60000);
-                conn.setInstanceFollowRedirects(false); // Make the logic below easier to detect redirections
-
-                switch (conn.getResponseCode()) {
-                    case HttpURLConnection.HTTP_MOVED_PERM:
-                    case HttpURLConnection.HTTP_MOVED_TEMP:
-                        location = conn.getHeaderField("Location");
-                        base = new URL(url);
-                        next = new URL(base, location); // Deal with relative URLs
-                        url = next.toExternalForm();
-                        continue;
-                }
-                break;
-            }
-            iStream = (InputStream) conn.getInputStream();
-        } catch (Exception e) {
-            throw e;
-        }
-        return iStream;
     }
 
     // method to download a file
@@ -317,50 +283,55 @@ public class getMOSPatch {
             if (parameters.get("platform") == null) {
                 System.out.println("Platforms and languages need to be reset.");
                 System.out.println("Obtaining the list of platforms and languages:");
-            }
-            // download the search page into variable s
-            s = DownloadString("https://updates.oracle.com/Orion/SavedSearches/switch_to_simple");
-            // Extract platforms/Languages list
-            Pattern regex = Pattern.compile("<select name=plat_lang.*</select>", Pattern.DOTALL);
-            Matcher regexMatcher = regex.matcher(s);
-            if (regexMatcher.find()) {
-                for (String oneline: regexMatcher.group(0).split("\\r?\\n")) {
-                    if (oneline.contains("option") && !oneline.contains("selected")) {
-                        if (parameters.get("platform") == null) {
-                            System.out.println(oneline.split("\"")[1] + " - " + oneline.split(">")[1]);
+
+                // download the search page into variable s
+                s = DownloadString("https://updates.oracle.com/Orion/SavedSearches/switch_to_simple");
+                // Extract platforms/Languages list
+                Pattern regex = Pattern.compile("<select name=plat_lang.*</select>", Pattern.DOTALL);
+                Matcher regexMatcher = regex.matcher(s);
+                if (regexMatcher.find()) {
+                    for (String oneline: regexMatcher.group(0).split("\\r?\\n")) {
+                        if (oneline.contains("option") && !oneline.contains("selected")) {
+                            if (parameters.get("platform") == null) {
+                                System.out.println(oneline.split("\"")[1] + " - " + oneline.split(">")[1]);
+                            }
+                            // Put the downloaded platform codes and descriptions into the "platforms" Map
+                            platforms.put(oneline.split("\"")[1], oneline.split(">")[1]);
                         }
-                        // Put the downloaded platform codes and descriptions into the "platforms" Map
-                        platforms.put(oneline.split("\"")[1], oneline.split(">")[1]);
                     }
                 }
-            }
-            // Ask inputs if "platforms" parameter was not specified, and remove the parameter. SO a new value was asked if the inputs validation fails
-            System.out.println();
-            Console console = System.console();
-            if (parameters.get("platform") == null) {
-                listplatforms = console.readLine("Enter Comma separated platforms to list: ");
-            } else {
-                listplatforms = parameters.get("platform");
-                System.out.println("Enter Comma separated platforms to list: " + listplatforms);
-                parameters.remove("platform");
+                // Ask inputs if "platforms" parameter was not specified, and remove the parameter. SO a new value was asked if the inputs validation fails
+                System.out.println();
+                Console console = System.console();
+                if (parameters.get("platform") == null) {
+                    listplatforms = console.readLine("Enter Comma separated platforms to list: ");
+                } else {
+                    listplatforms = parameters.get("platform");
+                    System.out.println("Enter Comma separated platforms to list: " + listplatforms);
+                    parameters.remove("platform");
 
-            }
-            // check the inputs as many times as necessary
-            while (!CheckInputs(listplatforms, platforms)) {
-                System.out.println(" ERROR: Unparsable inputs. Try Again.");
-                listplatforms = console.readLine("Enter Comma separated platforms to list:");
-            }
-
-            // Write the configuration to the .getMOSPatch.cfg file
-            try {
-                PrintWriter writer = new PrintWriter(".getMOSPatch.cfg", "UTF-8");
-                for (String r: listplatforms.split(",")) {
-                    ConfiguredPlatforms.put(r, platforms.get(r));
-                    writer.println(r + ";" + platforms.get(r));
                 }
-                writer.close();
-            } catch (Exception e) {
-                throw e;
+                // check the inputs as many times as necessary
+                while (!CheckInputs(listplatforms, platforms)) {
+                    System.out.println(" ERROR: Unparsable inputs. Try Again.");
+                    listplatforms = console.readLine("Enter Comma separated platforms to list:");
+                }
+
+                // Write the configuration to the .getMOSPatch.cfg file
+                try {
+                    PrintWriter writer = new PrintWriter(".getMOSPatch.cfg", "UTF-8");
+                    for (String r: listplatforms.split(",")) {
+                        ConfiguredPlatforms.put(r, platforms.get(r));
+                        writer.println(r + ";" + platforms.get(r));
+                    }
+                    writer.close();
+                } catch (Exception e) {
+                    throw e;
+                }
+            } else {
+                for (String r: parameters.get("platform").split(",")) {
+                    ConfiguredPlatforms.put(r, "Platform " + r);
+                }
             }
             // if the config file existed, simply read the inputs from it.
         } else {
@@ -378,7 +349,7 @@ public class getMOSPatch {
     // this method prepares the list of file download URLs
     private static void BuildDLFileList(String patch, String regx) throws Exception {
         try {
-            String patchDetails = "", DLPatchHTML = "", DLPatchHTML2 = "", PatchSelector = "";
+            String DLPatchHTML = "", DLPatchHTML2 = "", PatchSelector = "";
             boolean pprotected;
             Pattern regex2;
             Matcher regexMatcher2;
