@@ -1,6 +1,6 @@
 /*
 File name:          getMOSPatch.java
-Version:            2.3
+Version:            2.4
 Purpose:            An easier way to download patches from My Oracle Support (MOS) https://support.oracle.com
                     All you need is:
                         - Valid MOS credentials
@@ -11,6 +11,8 @@ Purpose:            An easier way to download patches from My Oracle Support (MO
 
 Author:             Maris Elsins (elmaris@gmail.com)
 Copyright:          (c) Maris Elsins - https://me-dba.com - All rights reserved.
+
+Contributors:       Timur Akhmadeev (akhmadeev@pythian.com) - https://github.com/pythianakhmadeev
 
 Disclaimer:         This script is provided "as is", so no warranties or guarantees are made
                     about its correctness, reliability and safety. Use it at your own risk!
@@ -31,6 +33,9 @@ Changes:
         2.1: Maris - Adjustments to the new user authentication process Oracle implemented (13-May-2020)
         2.2: Maris - the platforms list won't be downloaded anymore when the "platform" parameter is specified; Cleanup of the code
         2.3: Timur - code refactoring; stop reading patch search page for performance; debug
+        2.4: Maris - a few other minor optimizations:
+                     1) you can now select "none" patches to be downloaded from the list
+                     2) the same file will not be downloaded twice if it's selected in multiple patches/platforms. This mostly happened with the "Generic" patches if multiple platforms were selected.
 
 Usage:
         java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* \
@@ -41,7 +46,8 @@ Usage:
                                   [stagedir=<directory path>] \
                                   [MOSUser=<username>] \
                                   [MOSPass=<password>] \
-                                  [silent=yes]
+                                  [silent=yes] \
+                                  [debug=yes]
 
         Note 1: for JRE 1.6: use java -Dhttps.protocols=TLSv1 -jar getMOSPatch.jar ...
         Note 2: Usage notes are provided for a packaged jre
@@ -58,6 +64,7 @@ Usage:
                     MOSUser -       Optionally specify the MOS username, if not provided, it will be prompted.
                     MOSPass -       Optionally specify the MOS pasword, if not provided, it will be prompted.
                     silent=yes -    The dynamic progress indicator is not displayed.
+                    debug=yes -     Print some debug information.
 
 Example:            To download OPatch for 11gR2 database on Linux x86-64:
 
@@ -79,8 +86,10 @@ Example:            To download OPatch for 11gR2 database on Linux x86-64:
 import java.io.*;
 import java.net.*;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -101,8 +110,7 @@ public class getMOSPatch {
     private static Map<String, String> configuredPlatforms = new HashMap<String, String>();
 
     // DownloadFiles contains URLs to download
-    private static Map<Integer, String> downloadFiles = new TreeMap<Integer, String>();
-    private static int downloadFilesCounter = 0;
+    private static Set<String> downloadFiles = new LinkedHashSet<String>();
 
     // Intermediate MAP that populates the URLs for specific patch for the time inputs are collected.
     private static Map<Integer, String> patchFileList = new TreeMap<Integer, String>();
@@ -236,7 +244,7 @@ public class getMOSPatch {
     // Validates that all values in the passed comma separated string exists in the Map<Integer, String>
     private static boolean checkInputsTree(String inputs, Map<Integer, String> map) {
         // special processing for "all", as it's processed later
-        if (inputs.equals("") || inputs.equals("all")) {
+        if (inputs.equals("") || inputs.equals("none") || inputs.equals("all")) {
             return true;
         }
         for (String p: inputs.split(",")) {
@@ -417,23 +425,25 @@ public class getMOSPatch {
                 //Ask for inputs and validate them
             } else {
                 Console console = System.console();
-                patchSelector = console.readLine(" Enter Comma separated files to download: ");
+                patchSelector = console.readLine(" Enter Comma separated files to download (\"all\" or \"none\" can be used too): ");
                 while (!checkInputsTree(patchSelector, patchFileList)) {
                     System.out.println("  ERROR: Unparsable inputs. Try Again.");
-                    patchSelector = console.readLine(" Enter Comma separated files to download: ");
+                    patchSelector = console.readLine(" Enter Comma separated files to download (\"all\" or \"none\" can be used too): ");
                 }
             }
             // if "all" patches need to be downloaded - put them all in the DownloadFiles Map
             if (patchSelector.equals("all")) {
                 for (Map.Entry<Integer, String> dlurl: patchFileList.entrySet()) {
-                    downloadFiles.put(++downloadFilesCounter, dlurl.getValue());
+                    if (!downloadFiles.contains(dlurl.getValue())) {
+                        downloadFiles.add(dlurl.getValue());
+                    }
                 }
-            } else if (patchSelector.equals("")) {
+            } else if (patchSelector.equals("") || patchSelector.equals("none")) {
                 // Nothing needs to be done
-                // Otherwise put only the chosen ones in the DownloadFiles Map
             } else {
                 for (String p: patchSelector.split(",")) {
-                    downloadFiles.put(++downloadFilesCounter, patchFileList.get(Integer.parseInt(p)));
+                    if (!downloadFiles.contains(patchFileList.get(Integer.parseInt(p))))
+                    downloadFiles.add(patchFileList.get(Integer.parseInt(p)));
                 }
             }
         }
@@ -450,9 +460,9 @@ public class getMOSPatch {
         if (!downloadFiles.isEmpty()) {
             System.out.println("Downloading all selected files:");
             //iterate through the URLs in the TreeMap
-            for (Map.Entry <Integer, String> d: downloadFiles.entrySet()) {
+            for (String d: downloadFiles) {
                 System.out.print(" ");
-                downloadFile(d.getValue(), targetDir + d.getValue().split("process_form/")[1].split(".zip")[0] + ".zip");
+                downloadFile(d, targetDir + d.split("process_form/")[1].split(".zip")[0] + ".zip");
             }
         } else {
             System.out.println("There's nothing to download!");
