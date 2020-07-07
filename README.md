@@ -3,7 +3,7 @@
 getMOSPatch V2 - A Tool that helps downloading patches from My Oracle Support directly to the server! This version is completely rewritten in java and it should run on most platforms using JRE 1.6 or later.
 
 * File name: getMOSPatch.java
-* Version: 2.4
+* Version: 2.5
 * Purpose: An easier way to download patches from [My Oracle Support (MOS)](https://support.oracle.com). All you need is: Valid MOS credentials, the patch number(s), list of target platform/languages that the patch is required for, internet connectivity and JRE 1.6 or higher
 * Author: Maris Elsins (elmaris at gmail.com)
 * Copyright: (c) Maris Elsins - [https://me-dba.com](https://me-dba.com) - All rights reserved.
@@ -78,10 +78,7 @@ The rt.jar used for "-bootclasspath" was obtained from the Linux x64 version of 
 $ javac -version
 javac 1.8.0_66
 
-$ rm getMOSPatch.jar; javac -bootclasspath ~/99_TMP/jre1.6.0.45_rt/rt.jar -source 1.6 -target 1.6 getMOSPatch.java && jar cvmf META-INF/MANIFEST.MF getMOSPatch.jar getMOSPatch*.class; rm *.class
+$ rm getMOSPatch.jar; javac -bootclasspath /tmp/jdk1.6.0_45/jre/lib/rt.jar -source 1.6 -target 1.6 getMOSPatch.java && jar cvmf META-INF/MANIFEST.MF getMOSPatch.jar getMOSPatch*.class; rm *.class
 added manifest
-adding: getMOSPatch$1.class(in = 181) (out= 148)(deflated 18%)
-adding: getMOSPatch$CustomAuthenticator.class(in = 1344) (out= 723)(deflated 46%)
-adding: getMOSPatch$ReadFile.class(in = 986) (out= 641)(deflated 34%)
-adding: getMOSPatch.class(in = 12290) (out= 6396)(deflated 47%)
+adding: getMOSPatch.class(in = 14113) (out= 7419)(deflated 47%)
 ```
