@@ -3,7 +3,7 @@
 getMOSPatch V2 - A Tool that helps downloading patches from My Oracle Support directly to the server! This version is completely rewritten in java and it should run on most platforms using JRE 1.6 or later.
 
 * File name: getMOSPatch.java
-* Version: 2.5
+* Version: 2.6
 * Purpose: An easier way to download patches from [My Oracle Support (MOS)](https://support.oracle.com). All you need is: Valid MOS credentials, the patch number(s), list of target platform/languages that the patch is required for, internet connectivity and JRE 1.6 or higher
 * Author: Maris Elsins (elmaris at gmail.com)
 * Copyright: (c) Maris Elsins - [https://me-dba.com](https://me-dba.com) - All rights reserved.

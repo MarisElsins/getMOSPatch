@@ -1,6 +1,6 @@
 /*
 File name:          getMOSPatch.java
-Version:            2.5
+Version:            2.6
 Purpose:            An easier way to download patches from My Oracle Support (MOS) https://support.oracle.com
                     All you need is:
                         - Valid MOS credentials
@@ -37,6 +37,7 @@ Changes:
                      1) you can now select "none" patches to be downloaded from the list
                      2) the same file will not be downloaded twice if it's selected in multiple patches/platforms. This mostly happened with the "Generic" patches if multiple platforms were selected.
         2.5: Maris - rewrote the authentication part to workaround the changes implemented by MOS.
+        2.6: Maris - Added a local base64 encoder as this utility needs to run on a very wide range of java versions
 
 Usage:
         java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* \
@@ -93,17 +94,14 @@ import java.util.TreeMap;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import sun.misc.BASE64Encoder;
 
 public class getMOSPatch {
-    //Constants section
-    private static final int BUFFER_SIZE = 128*1024;
+    // Constants section
+    private static final int BUFFER_SIZE = 128 * 1024;
     private static final int PROGRESS_INTERVAL = 1024 * 1024;
     private static final int LIMIT_PAGE_SIZE = 256 * 1024;
 
-    private static final char[] pchar = {
-        '-', '\\', '|', '/'
-    };
+    private static final char[] pchar = { '-', '\\', '|', '/' };
 
     // I'll store the passed parameters in this Map
     private static Map<String, String> parameters;
@@ -114,8 +112,81 @@ public class getMOSPatch {
     // DownloadFiles contains URLs to download
     private static Set<String> downloadFiles = new LinkedHashSet<String>();
 
-    // Intermediate MAP that populates the URLs for specific patch for the time inputs are collected.
+    // Intermediate MAP that populates the URLs for specific patch for the time
+    // inputs are collected.
     private static Map<Integer, String> patchFileList = new TreeMap<Integer, String>();
+
+    // Start of "Base64Encoder"
+    // The code was written by John Zukowski and it was found on
+    // https://www.infoworld.com/article/2077546/java-tip-47--url-authentication-revisited.html
+    public static final char[] alphabet = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', // 0 to 7
+            'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', // 8 to 15
+            'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', // 16 to 23
+            'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', // 24 to 31
+            'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', // 32 to 39
+            'o', 'p', 'q', 'r', 's', 't', 'u', 'v', // 40 to 47
+            'w', 'x', 'y', 'z', '0', '1', '2', '3', // 48 to 55
+            '4', '5', '6', '7', '8', '9', '+', '/' }; // 56 to 63
+
+    public static String encode(String s) {
+        return encode(s.getBytes());
+    }
+
+    public static String encode(byte[] octetString) {
+        int bits24;
+        int bits6;
+
+        char[] out = new char[((octetString.length - 1) / 3 + 1) * 4];
+
+        int outIndex = 0;
+        int i = 0;
+
+        while ((i + 3) <= octetString.length) {
+            // store the octets
+            bits24 = (octetString[i++] & 0xFF) << 16;
+            bits24 |= (octetString[i++] & 0xFF) << 8;
+            bits24 |= (octetString[i++] & 0xFF) << 0;
+
+            bits6 = (bits24 & 0x00FC0000) >> 18;
+            out[outIndex++] = alphabet[bits6];
+            bits6 = (bits24 & 0x0003F000) >> 12;
+            out[outIndex++] = alphabet[bits6];
+            bits6 = (bits24 & 0x00000FC0) >> 6;
+            out[outIndex++] = alphabet[bits6];
+            bits6 = (bits24 & 0x0000003F);
+            out[outIndex++] = alphabet[bits6];
+        }
+
+        if (octetString.length - i == 2) {
+            // store the octets
+            bits24 = (octetString[i] & 0xFF) << 16;
+            bits24 |= (octetString[i + 1] & 0xFF) << 8;
+
+            bits6 = (bits24 & 0x00FC0000) >> 18;
+            out[outIndex++] = alphabet[bits6];
+            bits6 = (bits24 & 0x0003F000) >> 12;
+            out[outIndex++] = alphabet[bits6];
+            bits6 = (bits24 & 0x00000FC0) >> 6;
+            out[outIndex++] = alphabet[bits6];
+
+            // padding
+            out[outIndex++] = '=';
+        } else if (octetString.length - i == 1) {
+            // store the octets
+            bits24 = (octetString[i] & 0xFF) << 16;
+
+            bits6 = (bits24 & 0x00FC0000) >> 18;
+            out[outIndex++] = alphabet[bits6];
+            bits6 = (bits24 & 0x0003F000) >> 12;
+            out[outIndex++] = alphabet[bits6];
+
+            // padding
+            out[outIndex++] = '=';
+            out[outIndex++] = '=';
+        }
+        return new String(out);
+    }
+    // End of "Base64Encoder"
 
     // Variables for the credentials
     private static String username;
@@ -143,22 +214,21 @@ public class getMOSPatch {
     private static URL getFinalURL(URL url, String addAuth) {
         try {
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
-            //System.out.println("Assessing URL: "+ url.toString());
+            // System.out.println("Assessing URL: "+ url.toString());
             con.setInstanceFollowRedirects(false);
             if (addAuth == "Yes") {
-                String encoded = new BASE64Encoder().encode((username+":"+password).getBytes());
-                con.setRequestProperty("Authorization", "Basic "+encoded);
+                con.setRequestProperty("Authorization", "Basic " + encode(username + ":" + password));
             }
             con.connect();
             int resCode = con.getResponseCode();
-            //System.out.println("Response code = "+resCode);
+            // System.out.println("Response code = "+resCode);
             if (resCode == HttpURLConnection.HTTP_MOVED_PERM || resCode == HttpURLConnection.HTTP_MOVED_TEMP) {
                 String Location = con.getHeaderField("Location");
                 if (Location.startsWith("/")) {
                     Location = url.getProtocol() + "://" + url.getHost() + Location;
                 }
-                return getFinalURL(new URL(Location),"Yes");
-            } 
+                return getFinalURL(new URL(Location), "Yes");
+            }
             if (resCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
                 System.out.println("ERROR: Invalid credentials");
                 System.exit(0);
@@ -184,7 +254,7 @@ public class getMOSPatch {
         long tim1, tim2;
         String progressData = " ";
 
-        HttpURLConnection connection = (HttpURLConnection) (getFinalURL(new URL(url),"No").openConnection());
+        HttpURLConnection connection = (HttpURLConnection) (getFinalURL(new URL(url), "No").openConnection());
         // connection.setFollowRedirects(true);
         connection.connect();
 
@@ -198,7 +268,8 @@ public class getMOSPatch {
         if (!filename.equals(".getMOSPatch.tmp")) {
             System.out.print("Downloading " + filename + ":  ");
         }
-        // The download is happening here. I've pimped it with some progress display (except when downloading a webpage)
+        // The download is happening here. I've pimped it with some progress display
+        // (except when downloading a webpage)
         tim1 = System.currentTimeMillis();
         while ((bytesRead = in.read(buffer, 0, BUFFER_SIZE)) != -1 && fileSize <= limit) {
             fileSize = fileSize + (long) bytesRead;
@@ -209,30 +280,32 @@ public class getMOSPatch {
             if (!filename.equals(".getMOSPatch.tmp")) {
                 if ((printSize + PROGRESS_INTERVAL < fileSize) && !silent) {
                     tim2 = System.currentTimeMillis();
-                    System.out.print(
-                            String.format("%" + progressData.length() + "s", "")
-                                .replace(" ", "\b")
-                    );
-                    progressData = pchar[(iterator++ % 4)] + " " + fileSize / 1024 / 1024 + "MB" +
-                            " at average speed of " + fileSize / (tim2 - tim1) + "KB/s        ";
+                    System.out.print(String.format("%" + progressData.length() + "s", "").replace(" ", "\b"));
+                    progressData = pchar[(iterator++ % 4)] + " " + fileSize / 1024 / 1024 + "MB"
+                            + " at average speed of " + fileSize / (tim2 - tim1) + "KB/s        ";
                     System.out.print(progressData);
                     printSize = printSize + PROGRESS_INTERVAL;
                 }
-                // If downloading a webpage, just show a rotating char as a sign that something's ongoing, unless silent=yes
+                // If downloading a webpage, just show a rotating char as a sign that
+                // something's ongoing, unless silent=yes
             } else if (!silent) {
-                System.out.print(
-                        String.format("%" + progressData.length() + "s", "")
-                            .replace(" ", "\b") + pchar[(iterator++ % 4)]
-                );
+                System.out.print(String.format("%" + progressData.length() + "s", "").replace(" ", "\b")
+                        + pchar[(iterator++ % 4)]);
             }
         }
-        outputStream.flush(); outputStream.close(); in.close();
-        // Download completed. In case of a real file post the final stats, otherwise remove the char.
+        outputStream.flush();
+        outputStream.close();
+        in.close();
+        // Download completed. In case of a real file post the final stats, otherwise
+        // remove the char.
         System.out.print(String.format("%" + progressData.length() + "s", "").replace(' ', '\b'));
         if (!filename.equals(".getMOSPatch.tmp")) {
             tim2 = System.currentTimeMillis();
-            if (tim2 == tim1) { tim2++; }
-            progressData = fileSize / 1024 / 1024 + "MB at average speed of " + fileSize / (tim2 - tim1) + "KB/s - DONE!";
+            if (tim2 == tim1) {
+                tim2++;
+            }
+            progressData = fileSize / 1024 / 1024 + "MB at average speed of " + fileSize / (tim2 - tim1)
+                    + "KB/s - DONE!";
             System.out.println(progressData);
         } else {
             System.out.print("\b");
@@ -266,22 +339,24 @@ public class getMOSPatch {
         return outputString;
     }
 
-    // Validates that all values in the passed comma separated string exists in the Map<String, String>
+    // Validates that all values in the passed comma separated string exists in the
+    // Map<String, String>
     private static boolean checkInputs(String inputs, Map<String, String> map) {
-        for (String p: inputs.split(",")) {
+        for (String p : inputs.split(",")) {
             if (!map.containsKey(p))
                 return false;
         }
         return true;
     }
 
-    // Validates that all values in the passed comma separated string exists in the Map<Integer, String>
+    // Validates that all values in the passed comma separated string exists in the
+    // Map<Integer, String>
     private static boolean checkInputsTree(String inputs, Map<Integer, String> map) {
         // special processing for "all", as it's processed later
         if (inputs.equals("") || inputs.equals("none") || inputs.equals("all")) {
             return true;
         }
-        for (String p: inputs.split(",")) {
+        for (String p : inputs.split(",")) {
             try {
                 if (!map.containsKey(Integer.parseInt(p)))
                     return false;
@@ -300,7 +375,8 @@ public class getMOSPatch {
         // this map is used to store platform/language codes and description from MOS.
         Map<String, String> platforms = new HashMap<String, String>();
 
-        // Reading the .getMOSPatch.cfg file into getMOSPatchcfg variable if the file exists
+        // Reading the .getMOSPatch.cfg file into getMOSPatchcfg variable if the file
+        // exists
         try {
             getMOSPatchcfg = readFile(".getMOSPatch.cfg");
         } catch (IOException e) {
@@ -308,9 +384,9 @@ public class getMOSPatch {
 
         // Populate variables with available platforms
         // Checking if we need to download platform list from MOS, yes if:
-        //  * parameter "reset=yes" was passed, or
-        //  * "platforms" parameter was provided (we need to validate the input), or
-        //  * the .getMOSPatch.cfg was empty or didn't exist
+        // * parameter "reset=yes" was passed, or
+        // * "platforms" parameter was provided (we need to validate the input), or
+        // * the .getMOSPatch.cfg was empty or didn't exist
         if (checkParam("reset", "yes") || parameters.containsKey("platform") || "".equals(getMOSPatchcfg)) {
             if (parameters.get("platform") == null) {
                 System.out.println("Platforms and languages need to be reset.");
@@ -322,7 +398,7 @@ public class getMOSPatch {
                 Pattern regex = Pattern.compile("<select name=plat_lang.*</select>", Pattern.DOTALL);
                 Matcher regexMatcher = regex.matcher(s);
                 if (regexMatcher.find()) {
-                    for (String oneline: regexMatcher.group(0).split("\\r?\\n")) {
+                    for (String oneline : regexMatcher.group(0).split("\\r?\\n")) {
                         if (oneline.contains("option") && !oneline.contains("selected")) {
                             if (parameters.get("platform") == null) {
                                 System.out.println(oneline.split("\"")[1] + " - " + oneline.split(">")[1]);
@@ -332,7 +408,8 @@ public class getMOSPatch {
                         }
                     }
                 }
-                // Ask inputs if "platforms" parameter was not specified, and remove the parameter. SO a new value was asked if the inputs validation fails
+                // Ask inputs if "platforms" parameter was not specified, and remove the
+                // parameter. SO a new value was asked if the inputs validation fails
                 System.out.println();
                 Console console = System.console();
                 if (parameters.get("platform") == null) {
@@ -354,21 +431,22 @@ public class getMOSPatch {
                     configuredPlatforms.put(r, platforms.get(r));
                     writer.println(r + ";" + platforms.get(r));
                 }
-                writer.flush(); writer.close();
+                writer.flush();
+                writer.close();
             } else {
-                for (String r: parameters.get("platform").split(",")) {
+                for (String r : parameters.get("platform").split(",")) {
                     configuredPlatforms.put(r, "Platform " + r);
                 }
             }
             // if the config file existed, simply read the inputs from it.
         } else {
-            for (String r: getMOSPatchcfg.split("\\r?\\n")) {
+            for (String r : getMOSPatchcfg.split("\\r?\\n")) {
                 configuredPlatforms.put(r.split(";")[0], r.split(";")[1]);
             }
         }
         // Output the configured platforms.
         System.out.println("\nWe're going to download patches for the following Platforms/Languages:");
-        for (Map.Entry < String, String > entry: configuredPlatforms.entrySet()) {
+        for (Map.Entry<String, String> entry : configuredPlatforms.entrySet()) {
             System.out.println(" " + entry.getKey() + " - " + entry.getValue());
         }
     }
@@ -383,23 +461,27 @@ public class getMOSPatch {
         // Temporary variables are reset
         int patchFileListCounter = 0;
         // Iterate through the list of platforms and languages
-        for (Map.Entry <String, String> platform: configuredPlatforms.entrySet()) {
+        for (Map.Entry<String, String> platform : configuredPlatforms.entrySet()) {
             // keeps the password protection status
             pwdProtected = false;
             patchFileList.clear();
             patchFileListCounter = 0;
-            System.out.println("\nProcessing patch " + patch + " for " + platform.getValue() + " and applying regexp " + regx + " to the filenames:");
+            System.out.println("\nProcessing patch " + patch + " for " + platform.getValue() + " and applying regexp "
+                    + regx + " to the filenames:");
 
-            // Submit the patch+platform combination using the SimpleSearch form in MOS and read it into variable dlPatchHTML
+            // Submit the patch+platform combination using the SimpleSearch form in MOS and
+            // read it into variable dlPatchHTML
             dlPatchHTML = downloadString(
-                    "https://updates.oracle.com/Orion/SimpleSearch/process_form?search_type=patch&patch_number=" + patch + "&plat_lang=" + platform.getKey(),
+                    "https://updates.oracle.com/Orion/SimpleSearch/process_form?search_type=patch&patch_number=" + patch
+                            + "&plat_lang=" + platform.getKey(),
                     LIMIT_PAGE_SIZE);
 
-            // Look for file download URL pattern in the retrieved HTML and collect it in the PatchFileList
+            // Look for file download URL pattern in the retrieved HTML and collect it in
+            // the PatchFileList
             Pattern regex = Pattern.compile("https://.+?Download/process_form/[^\"]*.zip[^\"]*");
             Matcher regexMatcher = regex.matcher(dlPatchHTML);
             while (regexMatcher.find()) {
-                for (String oneline: regexMatcher.group(0).split("\\r?\\n")) {
+                for (String oneline : regexMatcher.group(0).split("\\r?\\n")) {
                     if (oneline.split("process_form/")[1].split(".zip")[0].matches(regx)) {
                         patchFileList.put(++patchFileListCounter, oneline);
                     }
@@ -411,20 +493,23 @@ public class getMOSPatch {
             }
 
             // Processing Multipart patches, i.e. 12978712
-            // Basically we find the URL for the "Patch Details" where URLs of individual files are found.
+            // Basically we find the URL for the "Patch Details" where URLs of individual
+            // files are found.
             // Procesing is the same as above.
-            regex = Pattern.compile("javascript:showDetails.\"/Orion/PatchDetails/process_form.+?Download Multi Part Patch");
+            regex = Pattern
+                    .compile("javascript:showDetails.\"/Orion/PatchDetails/process_form.+?Download Multi Part Patch");
             regexMatcher = regex.matcher(dlPatchHTML);
             while (regexMatcher.find()) {
-                for (String oneline: regexMatcher.group(0).split("\\r?\\n")) {
+                for (String oneline : regexMatcher.group(0).split("\\r?\\n")) {
                     // Download the patch detail page
                     dlPatchHTML2 = downloadString("https://updates.oracle.com" + oneline.split("\"")[1]);
 
-                    // Look for file download URL pattern in the retrieved HTML and collect it in the PatchFileList
+                    // Look for file download URL pattern in the retrieved HTML and collect it in
+                    // the PatchFileList
                     regex2 = Pattern.compile("https://.+?Download/process_form/[^\"]*.zip[^\"]*");
                     regexMatcher2 = regex2.matcher(dlPatchHTML2);
                     while (regexMatcher2.find()) {
-                        for (String oneline2: regexMatcher2.group(0).split("\\r?\\n")) {
+                        for (String oneline2 : regexMatcher2.group(0).split("\\r?\\n")) {
                             if (oneline2.split("process_form/")[1].split(".zip")[0].matches(regx)) {
                                 patchFileList.put(++patchFileListCounter, oneline2);
                             }
@@ -438,17 +523,20 @@ public class getMOSPatch {
             }
             // Display a warning if there are password protected files
             if (pwdProtected) {
-                System.out.println(" ! This patch contains password protected files (not listed). Use My Oracle Support to download them!");
+                System.out.println(
+                        " ! This patch contains password protected files (not listed). Use My Oracle Support to download them!");
                 // Display a message if no files were found
             } else if (patchFileList.isEmpty()) {
                 System.out.println(" No files available");
             }
-            //Produce the list of found files if anything was found
-            for (Map.Entry < Integer, String > dlurl: patchFileList.entrySet()) {
-                System.out.println(" " + dlurl.getKey() + " - " + dlurl.getValue().split("process_form/")[1].split(".zip")[0] + ".zip");
+            // Produce the list of found files if anything was found
+            for (Map.Entry<Integer, String> dlurl : patchFileList.entrySet()) {
+                System.out.println(" " + dlurl.getKey() + " - "
+                        + dlurl.getValue().split("process_form/")[1].split(".zip")[0] + ".zip");
             }
             patchSelector = "";
-            // if parameter "download=all" was specified, don't ask for inputs, but download all files. This is especially useful in combination with "regexp" parameter
+            // if parameter "download=all" was specified, don't ask for inputs, but download
+            // all files. This is especially useful in combination with "regexp" parameter
             if (checkParam("download", "all") && !patchFileList.isEmpty()) {
                 // download all files here
                 System.out.println(" Enter Comma separated files to download: all");
@@ -456,18 +544,21 @@ public class getMOSPatch {
                 patchSelector = "all";
             } else if (patchFileList.isEmpty()) {
                 // Nothing needs to be done
-                //Ask for inputs and validate them
+                // Ask for inputs and validate them
             } else {
                 Console console = System.console();
-                patchSelector = console.readLine(" Enter Comma separated files to download (\"all\" or \"none\" can be used too): ");
+                patchSelector = console
+                        .readLine(" Enter Comma separated files to download (\"all\" or \"none\" can be used too): ");
                 while (!checkInputsTree(patchSelector, patchFileList)) {
                     System.out.println("  ERROR: Unparsable inputs. Try Again.");
-                    patchSelector = console.readLine(" Enter Comma separated files to download (\"all\" or \"none\" can be used too): ");
+                    patchSelector = console.readLine(
+                            " Enter Comma separated files to download (\"all\" or \"none\" can be used too): ");
                 }
             }
-            // if "all" patches need to be downloaded - put them all in the DownloadFiles Map
+            // if "all" patches need to be downloaded - put them all in the DownloadFiles
+            // Map
             if (patchSelector.equals("all")) {
-                for (Map.Entry<Integer, String> dlurl: patchFileList.entrySet()) {
+                for (Map.Entry<Integer, String> dlurl : patchFileList.entrySet()) {
                     if (!downloadFiles.contains(dlurl.getValue())) {
                         downloadFiles.add(dlurl.getValue());
                     }
@@ -475,9 +566,9 @@ public class getMOSPatch {
             } else if (patchSelector.equals("") || patchSelector.equals("none")) {
                 // Nothing needs to be done
             } else {
-                for (String p: patchSelector.split(",")) {
+                for (String p : patchSelector.split(",")) {
                     if (!downloadFiles.contains(patchFileList.get(Integer.parseInt(p))))
-                    downloadFiles.add(patchFileList.get(Integer.parseInt(p)));
+                        downloadFiles.add(patchFileList.get(Integer.parseInt(p)));
                 }
             }
         }
@@ -493,8 +584,8 @@ public class getMOSPatch {
         System.out.println();
         if (!downloadFiles.isEmpty()) {
             System.out.println("Downloading all selected files:");
-            //iterate through the URLs in the TreeMap
-            for (String d: downloadFiles) {
+            // iterate through the URLs in the TreeMap
+            for (String d : downloadFiles) {
                 System.out.print(" ");
                 downloadFile(d, targetDir + d.split("process_form/")[1].split(".zip")[0] + ".zip");
             }
@@ -505,14 +596,14 @@ public class getMOSPatch {
 
     public static void main(String[] args) throws IOException {
         if (args.length > 0) {
-            //Populate the parameters map
+            // Populate the parameters map
             parameters = new HashMap<String, String>();
             parameters.put("regexp", ".*");
             TreeMap<String, Long> debug = new TreeMap<String, Long>();
             long t1 = System.currentTimeMillis();
 
-            //will only consider parameters that contain "=", the rest is ignored
-            for (String s: args) {
+            // will only consider parameters that contain "=", the rest is ignored
+            for (String s : args) {
                 if (s.contains("=")) {
                     parameters.put(s.split("=")[0], s.split("=")[1]);
                 }
@@ -521,13 +612,13 @@ public class getMOSPatch {
             // Setting the Cookie handling and the Authenticator
             CookieManager cookieMgr = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
             CookieHandler.setDefault(cookieMgr);
-            //Authenticator.setDefault(new CustomAuthenticator());
+            // Authenticator.setDefault(new CustomAuthenticator());
 
-            //Logs on to MOS, and initiates the Authenticator and the SSL session
+            // Logs on to MOS, and initiates the Authenticator and the SSL session
             setAuthentication();
             String waste = downloadString("https://updates.oracle.com/Orion/Services/download");
             debug.put("1. set up", System.currentTimeMillis() - t1);
-            
+
             // Iterate through the requested patches and download them one by one
             if (parameters.containsKey("patch")) {
 
@@ -536,20 +627,20 @@ public class getMOSPatch {
                 debug.put("2. get platforms", System.currentTimeMillis() - t1);
 
                 t1 = System.currentTimeMillis();
-                for (String p: parameters.get("patch").split(",")) {
+                for (String p : parameters.get("patch").split(",")) {
                     if (!"".equals(p))
                         buildDLFileList(p, parameters.get("regexp"));
                 }
                 debug.put("3. build list", System.currentTimeMillis() - t1);
 
-                //Download all files
+                // Download all files
                 t1 = System.currentTimeMillis();
                 downloadAllFiles();
                 debug.put("4. download files", System.currentTimeMillis() - t1);
 
                 if (checkParam("debug", "yes")) {
                     System.out.println("Timings (ms): ");
-                    for (Map.Entry<String, Long> e: debug.entrySet()) {
+                    for (Map.Entry<String, Long> e : debug.entrySet()) {
                         System.out.printf(" %20s: %9d%n", e.getKey(), e.getValue());
                     }
                 }
@@ -558,7 +649,8 @@ public class getMOSPatch {
             }
         } else {
             System.out.println("\nERROR: At least one parameter needs to be specified!");
-            System.out.println("USAGE: java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* [platform=<plcode_1>[,<plcode_n>]*] [reset=yes] [regexp=<regular_expression>] [download=all] [MOSUser=<username>] [MOSPass=<password>]");
+            System.out.println(
+                    "USAGE: java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* [platform=<plcode_1>[,<plcode_n>]*] [reset=yes] [regexp=<regular_expression>] [download=all] [MOSUser=<username>] [MOSPass=<password>]");
         }
     }
 }
