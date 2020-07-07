@@ -36,6 +36,7 @@ Changes:
         2.4: Maris - a few other minor optimizations:
                      1) you can now select "none" patches to be downloaded from the list
                      2) the same file will not be downloaded twice if it's selected in multiple patches/platforms. This mostly happened with the "Generic" patches if multiple platforms were selected.
+        2.5: Maris - rewrote the authentication part to workaround the changes implemented by MOS.
 
 Usage:
         java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* \
@@ -92,6 +93,7 @@ import java.util.TreeMap;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import sun.misc.BASE64Encoder;
 
 public class getMOSPatch {
     //Constants section
@@ -115,29 +117,56 @@ public class getMOSPatch {
     // Intermediate MAP that populates the URLs for specific patch for the time inputs are collected.
     private static Map<Integer, String> patchFileList = new TreeMap<Integer, String>();
 
-    //Authenticator that requests the username password inputs
-    private static class CustomAuthenticator extends Authenticator {
-        // Called when password authorization is needed
-        protected PasswordAuthentication getPasswordAuthentication() {
-            String username;
-            char[] password;
-            Console console = System.console();
-            // If username is provided via a parameter then use it once
-            if (parameters.get("MOSUser") == null) {
-                username = console.readLine("Enter your MOS username: ");
-            } else {
-                username = parameters.get("MOSUser");
-                parameters.remove("MOSUser");
-            }
-            // If password is provided via a parameter then use it once
-            if (parameters.get("MOSPass") == null) {
-                password = console.readPassword("Enter your MOS password: ");
-            } else {
-                password = parameters.get("MOSPass").toCharArray();
-                parameters.remove("MOSPass");
-            }
-            return new PasswordAuthentication(username, password);
+    // Variables for the credentials
+    private static String username;
+    private static String password;
+
+    private static void setAuthentication() {
+        Console console = System.console();
+
+        // If username is provided via a parameter then use it once
+        if (parameters.get("MOSUser") == null) {
+            username = console.readLine("Enter your MOS username: ");
+        } else {
+            username = parameters.get("MOSUser");
+            parameters.remove("MOSUser");
         }
+        // If password is provided via a parameter then use it once
+        if (parameters.get("MOSPass") == null) {
+            password = String.valueOf(console.readPassword("Enter your MOS password: "));
+        } else {
+            password = parameters.get("MOSPass");
+            parameters.remove("MOSPass");
+        }
+    }
+
+    private static URL getFinalURL(URL url, String addAuth) {
+        try {
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            //System.out.println("Assessing URL: "+ url.toString());
+            con.setInstanceFollowRedirects(false);
+            if (addAuth == "Yes") {
+                String encoded = new BASE64Encoder().encode((username+":"+password).getBytes());
+                con.setRequestProperty("Authorization", "Basic "+encoded);
+            }
+            con.connect();
+            int resCode = con.getResponseCode();
+            //System.out.println("Response code = "+resCode);
+            if (resCode == HttpURLConnection.HTTP_MOVED_PERM || resCode == HttpURLConnection.HTTP_MOVED_TEMP) {
+                String Location = con.getHeaderField("Location");
+                if (Location.startsWith("/")) {
+                    Location = url.getProtocol() + "://" + url.getHost() + Location;
+                }
+                return getFinalURL(new URL(Location),"Yes");
+            } 
+            if (resCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                System.out.println("ERROR: Invalid credentials");
+                System.exit(0);
+            }
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+        return url;
     }
 
     private static boolean checkParam(String key, String value) {
@@ -155,7 +184,12 @@ public class getMOSPatch {
         long tim1, tim2;
         String progressData = " ";
 
-        BufferedInputStream in = new BufferedInputStream(new URL(url).openStream());
+        HttpURLConnection connection = (HttpURLConnection) (getFinalURL(new URL(url),"No").openConnection());
+        // connection.setFollowRedirects(true);
+        connection.connect();
+
+        BufferedInputStream in = new BufferedInputStream(connection.getInputStream());
+        // BufferedInputStream in = new BufferedInputStream(url.openStream());
         FileOutputStream outputStream = new FileOutputStream(filename);
         int bytesRead = -1;
         int iterator = 0;
@@ -484,16 +518,18 @@ public class getMOSPatch {
                 }
             }
 
+            // Setting the Cookie handling and the Authenticator
+            CookieManager cookieMgr = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
+            CookieHandler.setDefault(cookieMgr);
+            //Authenticator.setDefault(new CustomAuthenticator());
+
+            //Logs on to MOS, and initiates the Authenticator and the SSL session
+            setAuthentication();
+            String waste = downloadString("https://updates.oracle.com/Orion/Services/download");
+            debug.put("1. set up", System.currentTimeMillis() - t1);
+            
             // Iterate through the requested patches and download them one by one
             if (parameters.containsKey("patch")) {
-                // Setting the Cookie handling and the Authenticator
-                CookieManager cookieMgr = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
-                CookieHandler.setDefault(cookieMgr);
-                Authenticator.setDefault(new CustomAuthenticator());
-
-                //Logs on to MOS, and initiates the Authenticator and the SSL session
-                String waste = downloadString("https://updates.oracle.com/Orion/Services/download");
-                debug.put("1. set up", System.currentTimeMillis() - t1);
 
                 t1 = System.currentTimeMillis();
                 platforms();
