@@ -76,7 +76,7 @@ The rt.jar used for "-bootclasspath" was obtained from the Linux x64 version of 
 
 ```bash
 $ javac -version
-javac 1.8.0_66
+javac 1.6.0_45
 
 $ rm getMOSPatch.jar; javac -bootclasspath /tmp/jdk1.6.0_45/jre/lib/rt.jar -source 1.6 -target 1.6 getMOSPatch.java && jar cvmf META-INF/MANIFEST.MF getMOSPatch.jar getMOSPatch*.class; rm *.class
 added manifest

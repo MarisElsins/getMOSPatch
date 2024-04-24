@@ -1,6 +1,6 @@
 /*
 File name:          getMOSPatch.java
-Version:            2.6
+Version:            2.7
 Purpose:            An easier way to download patches from My Oracle Support (MOS) https://support.oracle.com
                     All you need is:
                         - Valid MOS credentials
@@ -13,6 +13,7 @@ Author:             Maris Elsins (elmaris@gmail.com)
 Copyright:          (c) Maris Elsins - https://me-dba.com - All rights reserved.
 
 Contributors:       Timur Akhmadeev (akhmadeev@pythian.com) - https://github.com/pythianakhmadeev
+                    Eric Guyer (eeguyer74@gmail.com)
 
 Disclaimer:         This script is provided "as is", so no warranties or guarantees are made
                     about its correctness, reliability and safety. Use it at your own risk!
@@ -38,6 +39,7 @@ Changes:
                      2) the same file will not be downloaded twice if it's selected in multiple patches/platforms. This mostly happened with the "Generic" patches if multiple platforms were selected.
         2.5: Maris - rewrote the authentication part to workaround the changes implemented by MOS.
         2.6: Maris - Added a local base64 encoder as this utility needs to run on a very wide range of java versions
+        2.7: Eric  - Enhanced cookie management to support the new authentication flow in MOS.
 
 Usage:
         java -jar getMOSPatch.jar patch=<patch_number_1>[,<patch_number_n>]* \
@@ -89,6 +91,8 @@ import java.io.*;
 import java.net.*;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+// 2024-04-22 java.util.List required for doesCookieExist
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Set;
@@ -96,6 +100,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class getMOSPatch {
+    // 2024-04-23 Set finalDownload true upon downloadAllFiles
+    public static boolean finalDownload = false;
+
     // Constants section
     private static final int BUFFER_SIZE = 128 * 1024;
     private static final int PROGRESS_INTERVAL = 1024 * 1024;
@@ -210,19 +217,32 @@ public class getMOSPatch {
             parameters.remove("MOSPass");
         }
     }
-
+    
+	// 2024-04-22 added to ensure any cookie exists, but specifically Oracle_updates_auth
+    public static boolean doesCookieExist(String cookieName) {
+        CookieManager manager = (CookieManager) CookieHandler.getDefault();
+        List<HttpCookie> cookies = manager.getCookieStore().getCookies();
+        for (HttpCookie cookie : cookies) {
+            if (cookieName.equals(cookie.getName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+   
     private static URL getFinalURL(URL url, String addAuth) {
         try {
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
             // System.out.println("Assessing URL: "+ url.toString());
             con.setInstanceFollowRedirects(false);
-            if (addAuth == "Yes") {
+            if ("Yes".equals(addAuth)) {
                 con.setRequestProperty("Authorization", "Basic " + encode(username + ":" + password));
             }
             con.connect();
             int resCode = con.getResponseCode();
             // System.out.println("Response code = "+resCode);
-            if (resCode == HttpURLConnection.HTTP_MOVED_PERM || resCode == HttpURLConnection.HTTP_MOVED_TEMP) {
+            // 2024-04-22 Added HTTP_SEE_OTHER 303
+            if (resCode == HttpURLConnection.HTTP_MOVED_PERM || resCode == HttpURLConnection.HTTP_MOVED_TEMP || resCode == HttpURLConnection.HTTP_SEE_OTHER) {
                 String Location = con.getHeaderField("Location");
                 if (Location.startsWith("/")) {
                     Location = url.getProtocol() + "://" + url.getHost() + Location;
@@ -232,6 +252,10 @@ public class getMOSPatch {
             if (resCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
                 System.out.println("ERROR: Invalid credentials");
                 System.exit(0);
+            }
+            // 2024-04-22 Recurse until Oracle_updates_auth cookie is set
+            if (resCode == HttpURLConnection.HTTP_OK && !doesCookieExist("Oracle_updates_auth")) {
+                return getFinalURL(new URL("https://updates.oracle.com/Orion/SavedSearches/switch_to_simple"), "Yes");
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -254,10 +278,23 @@ public class getMOSPatch {
         long tim1, tim2;
         String progressData = " ";
 
-        HttpURLConnection connection = (HttpURLConnection) (getFinalURL(new URL(url), "No").openConnection());
+        HttpURLConnection connection;
+        // 2024-04-22 Ensure Oracle_updates_auth cookie is set 
+        if (!doesCookieExist("Oracle_updates_auth")) {
+            connection = (HttpURLConnection) (getFinalURL(new URL(url), "No").openConnection());
+        } else {
+            URL realURL = new URL(url);
+            connection = (HttpURLConnection) realURL.openConnection();
+            connection.setRequestProperty("Authorization", "Basic " + encode(username + ":" + password));
+            // 2024-04-22 manually disable Redirects unless downloading zips
+            if (!finalDownload) {
+                connection.setInstanceFollowRedirects(false);
+            }
+        }
+
         // connection.setFollowRedirects(true);
         connection.connect();
-
+        
         BufferedInputStream in = new BufferedInputStream(connection.getInputStream());
         // BufferedInputStream in = new BufferedInputStream(url.openStream());
         FileOutputStream outputStream = new FileOutputStream(filename);
@@ -576,6 +613,7 @@ public class getMOSPatch {
 
     // Method to download all files from URLs in DownloadFiles Map
     private static void downloadAllFiles() throws IOException {
+        finalDownload = true;
         String targetDir = "";
         String stageDir = parameters.containsKey("stagedir") ? parameters.get("stagedir") : "";
         if (!"".equals(stageDir)) {
