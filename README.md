@@ -3,7 +3,7 @@
 getMOSPatch V2 - A Tool that helps downloading patches from My Oracle Support directly to the server! This version is completely rewritten in java and it should run on most platforms using JRE 1.6 or later.
 
 * File name: getMOSPatch.java
-* Version: 2.6
+* Version: 2.7
 * Purpose: An easier way to download patches from [My Oracle Support (MOS)](https://support.oracle.com). All you need is: Valid MOS credentials, the patch number(s), list of target platform/languages that the patch is required for, internet connectivity and JRE 1.6 or higher
 * Author: Maris Elsins (elmaris at gmail.com)
 * Copyright: (c) Maris Elsins - [https://me-dba.com](https://me-dba.com) - All rights reserved.
@@ -71,14 +71,11 @@ Downloading all selected files
 
 ## Build instructions (by example)
 
-This jar is built on OS X 10.12.3.
-The rt.jar used for "-bootclasspath" was obtained from the Linux x64 version of jre 6u45 available [here](http://www.oracle.com/technetwork/java/javase/downloads/java-archive-downloads-javase6-419409.html#jre-6u45-oth-JPR):
+This jar is built on [vulhub/openjdk:oracle-jdk-6](https://hub.docker.com/layers/vulhub/openjdk/oracle-jdk-6/images/sha256-35e7972fd3bec182151ec5b61832197e1655609b6a7bf7babebda33318ef5eb1) (CentOS Linux release 7.3.1611 (Core))
 
 ```bash
 $ javac -version
 javac 1.6.0_45
 
-$ rm getMOSPatch.jar; javac -bootclasspath /tmp/jdk1.6.0_45/jre/lib/rt.jar -source 1.6 -target 1.6 getMOSPatch.java && jar cvmf META-INF/MANIFEST.MF getMOSPatch.jar getMOSPatch*.class; rm *.class
-added manifest
-adding: getMOSPatch.class(in = 14113) (out= 7419)(deflated 47%)
+$ rm getMOSPatch.jar; javac -source 1.6 -target 1.6 getMOSPatch.java && jar cvmf META-INF/MANIFEST.MF getMOSPatch.jar getMOSPatch*.class; rm *.class
 ```
